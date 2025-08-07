@@ -1,54 +1,35 @@
-import pandas as pd
 import sqlite3
-import requests
-import time
+import pandas as pd
+from sqlalchemy import create_engine
 
-# === CONFIG ===
-DB_FILE = 'zones.db'
-TABLE_NAME = 'taxi_zone'
-USER_AGENT = "ZoneGeocoderScript/1.0 (your_email@example.com)"  # Bắt buộc theo Nominatim policy
+# Thông tin kết nối MySQL
+mysql_user = 'root'
+mysql_password = 'YOUR_PASSWORD_HERE'   # ⬅️ Thay bằng mật khẩu MySQL
+mysql_host = 'localhost'
+mysql_port = 3306
+mysql_db = 'taxi_data'
 
-# === BƯỚC 1: Đọc dữ liệu từ DB ===
-conn = sqlite3.connect(DB_FILE)
-df = pd.read_sql_query(f"SELECT * FROM {TABLE_NAME}", conn)
+# Tạo engine kết nối đến MySQL
+engine = create_engine(f"mysql+mysqlconnector://{mysql_user}:{mysql_password}@{mysql_host}:{mysql_port}/{mysql_db}")
 
-# === BƯỚC 2: Hàm gọi Nominatim để lấy tọa độ ===
-def get_coordinates_nominatim(address):
-    url = "https://nominatim.openstreetmap.org/search"
-    params = {
-        'q': address,
-        'format': 'json',
-        'limit': 1,
-    }
-    headers = {
-        'User-Agent': USER_AGENT
-    }
-    response = requests.get(url, params=params, headers=headers)
-    data = response.json()
+# Kết nối đến SQLite
+sqlite_conn = sqlite3.connect('./data13.db')  # đảm bảo đường dẫn đúng
+cursor = sqlite_conn.cursor()
+
+# Lấy danh sách các bảng trong SQLite
+cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+tables = cursor.fetchall()
+
+# Chuyển từng bảng
+for table_name in tables:
+    table = table_name[0]
+    print(f"Đang chuyển bảng: {table}")
     
-    if data:
-        lat = float(data[0]['lat'])
-        lon = float(data[0]['lon'])
-        return lat, lon
-    else:
-        return None, None
+    df = pd.read_sql_query(f"SELECT * FROM {table}", sqlite_conn)
+    
+    df.to_sql(table, engine, if_exists='replace', index=False)
+    print(f"✅ Đã chuyển bảng {table} ({len(df)} dòng) sang MySQL.")
 
-# === BƯỚC 3: Lặp qua các Zone ===
-latitudes = []
-longitudes = []
-
-for idx, row in df.iterrows():
-    address = f"{row['Zone']}, {row['Borough']}, New York City"
-    lat, lon = get_coordinates_nominatim(address)
-    print(f"[{idx+1}] {address} → {lat}, {lon}")
-    latitudes.append(lat)
-    longitudes.append(lon)
-    time.sleep(1)  # Nominatim yêu cầu: max 1 request mỗi giây
-
-df['latitude'] = latitudes
-df['longitude'] = longitudes
-
-# === BƯỚC 4: Ghi trở lại DB ===
-df.to_sql(TABLE_NAME, conn, if_exists='replace', index=False)
-conn.close()
-print("✅ Đã cập nhật DB với tọa độ.")
+# Đóng kết nối
+sqlite_conn.close()
+print("✅ Hoàn tất chuyển dữ liệu.")

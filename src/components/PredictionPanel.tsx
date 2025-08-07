@@ -31,6 +31,12 @@ const PredictionPanel = () => {
 
   const generatePrediction = async () => {
   if (!location || !date || !hour) return;
+  const restrictedGreenZones = [1, 2, 5, 6, 44, 58, 59, 84, 99, 103, 109, 110, 115, 172, 176, 187, 199, 201, 245, 251];
+  if (taxiType === 'green' && restrictedGreenZones.includes(Number(location))) {
+  console.log('Taxi Green không được đón khách ở khu vực này');
+  alert('Taxi Green không được đón khách ở khu vực này');
+  return;
+}
 
   try {
     const res = await fetch(`http://localhost:3001/predict?type=${taxiType}&hour=${hour}&date=${date}&PULocationID=${location}`);

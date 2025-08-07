@@ -35,24 +35,40 @@ const DriverAssistPanel = () => {
 
   const generateSuggestions = async () => {
     if (!currentLocation || !day || !date || !hour || !taxiType) return;
-
+    const bannedGreenZones = [1, 2, 5, 6, 44, 58, 59, 84, 99, 103, 109, 110, 115, 172, 176, 187, 199, 201, 245, 251];
+    if (taxiType === 'green' && bannedGreenZones.includes(Number(currentLocation))) {
+    alert("🚫 Taxi Green không hoạt động ở khu vực này.");
+    return;
+  }
     try {
       const response = await fetch(
         `http://localhost:3001/suggestions?type=${taxiType}&hour=${hour}&date=${date}&PULocationID=${currentLocation}`
       );
       const data = await response.json();
+      // Lọc các suggestions hợp lệ
+    const validSuggestions = data.filter((item: any) => {
+      if (taxiType === 'green') {
+        return !bannedGreenZones.includes(item.LocationID);
+      }
+      return true;
+    });
 
-      const mapped: Suggestion[] = data.map((item: any) => {
+    if (taxiType === 'green' && validSuggestions.length === 0) {
+      alert("🚫 Không có gợi ý hợp lệ cho Taxi Green tại thời điểm này.");
+      return;
+    }
+
+    const topValid = validSuggestions.slice(0, 3);
+      const mapped: Suggestion[] = topValid.map((item: any, index: number) => {
         const demand = item.predicted_level || 'Medium';
-        const demandScore = demandScores[demand] || 3;
-
+      const demandScore = demandScores[demand] || 3;
         return {
           targetLocation: `${item.Zone} (ID ${item.LocationID})`,
           reason: `Dự đoán nhu cầu ${demand} với khoảng cách ${item.distance.toFixed(4)} đơn vị.`,
           estimatedDemand: demand,
           distance: `${item.distance.toFixed(4)} km`,
-          type: 'move',
-          priority: demandScore >= 4 ? 'high' : demandScore === 3 ? 'medium' : 'low',
+          type: item.distance === 0 ? 'stay' : 'move',
+          priority: index === 0 ? 'high' : index === 1 ? 'medium' : 'low',
           direction_url: item.direction_url
         };
       });
