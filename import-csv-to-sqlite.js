@@ -5,7 +5,7 @@ import fetch from 'node-fetch'; // Dùng để gọi API OpenStreetMap
 
 const sqlite3 = sqlite3pkg.verbose();
 
-const DB_FILE = './data14.db';
+const DB_FILE = './data13.db';
 const CSV_FILE = './fhvhv-010125.csv';
 const CSV1_FILE = './green_taxi_predictions.csv';
 const CSV2_FILE = './predictions.csv';
